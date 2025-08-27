@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>楽天SEOタイトル自動補正</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    input, textarea { width: 100%; padding: 8px; margin: 8px 0; }
+    .result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h2>楽天SEOタイトル自動補正ツール</h2>
+
+  <label>商品タイトル入力</label>
+  <textarea id="inputTitle" rows="2">マスキングテープ セット</textarea>
+
+  <label>抽出キーワード（カンマ区切り）</label>
+  <input type="text" id="keywords" value="おしゃれ,限定,ギフト,ランキング,新作">
+
+  <button onclick="optimizeTitle()">自動補正</button>
+
+  <div class="result">
+    <h3>最適化後タイトル</h3>
+    <p id="optimized"></p>
+    <h3>SEOスコア</h3>
+    <p id="score"></p>
+  </div>
+
+<script>
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function optimizeTitle() {
+  let title = document.getElementById("inputTitle").value.trim();
+  let keywords = document.getElementById("keywords").value.split(",").map(w => w.trim());
+  let bannedWords = ["送料無料","公式","ショップ","店舗"]; // SEO弱いワード
+
+  // 禁止ワード削除 (正規表現のメタ文字をエスケープ)
+  bannedWords.forEach(bw => {
+    title = title.replace(new RegExp(escapeRegExp(bw), 'g'), '');
+  });
+
+  // 既存ワード確認
+  let included = keywords.filter(k => title.includes(k));
+  let missing = keywords.filter(k => !title.includes(k));
+
+  // 不足キーワードを後方に追加
+  missing.forEach(m => {
+    if (title.length < 70) title += " " + m;
+  });
+
+  // 重複削除に使う前に全単語リストを保存
+  const allWords = title.split(" ");
+
+  // 重複削除
+  let words = [...new Set(allWords)];
+
+  // 重要キーワードを前に（おしゃれ, 限定, ギフト優先）
+  let priority = ["おしゃれ", "限定", "ギフト"];
+  words.sort((a,b) => {
+    if(priority.includes(a) && !priority.includes(b)) return -1;
+    if(!priority.includes(a) && priority.includes(b)) return 1;
+    return 0;
+  });
+
+  // 再構築
+  title = words.join(" ");
+
+  // 70文字調整
+  if (title.length > 70) {
+    title = title.substring(0,70);
+  } else {
+    while (title.length < 70) {
+      title += " 人気";
+      if (title.length >= 70) break;
+    }
+    if (title.length > 70) title = title.substring(0,70);
+  }
+
+  // 最終的なキーワード含有を再計算
+  included = keywords.filter(k => title.includes(k));
+
+  // SEOスコア
+  let score = 0;
+  if (title.length === 70) score += 40;
+  else if (title.length >= 68 && title.length <= 72) score += 30;
+  else if (title.length >= 60 && title.length <= 75) score += 20;
+
+  score += Math.min(40, included.length * 5);
+
+  const uniqueCount = new Set(allWords).size;
+  score += Math.round((uniqueCount / allWords.length) * 20);
+
+  // 出力
+  document.getElementById("optimized").innerText = title;
+  document.getElementById("score").innerText = score + " / 100";
+}
+</script>
+</body>
+</html>
